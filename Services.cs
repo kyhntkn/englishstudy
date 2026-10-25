@@ -32,25 +32,28 @@ public static class Exporter
     public static void Pdf(List<Item> items, string path)
     {
         QuestPDF.Settings.License = LicenseType.Community;
+        string[] heads = { "★", "Tür", "İngilizce", "Türkçe", "Örnek cümle", "Örnek çeviri", "Kategori", "Seviye", "Sözcük türü", "Not", "Kutu" };
+        float[] widths = { 0.4f, 0.8f, 2f, 2f, 3f, 3f, 1.2f, 0.8f, 1.1f, 1.8f, 0.5f };
         Document.Create(doc => doc.Page(page =>
         {
-            page.Margin(28);
-            page.DefaultTextStyle(x => x.FontSize(10));
-            page.Header().Text("English Study - Kelime ve Cümle Listesi").FontSize(16).Bold();
-            page.Content().PaddingTop(10).Table(t =>
+            page.Size(PageSizes.A4.Landscape());
+            page.Margin(20);
+            page.DefaultTextStyle(x => x.FontSize(8.5f));
+            page.Header().Text("English Study - Kelime ve Cümle Listesi").FontSize(15).Bold();
+            page.Content().PaddingTop(8).Table(t =>
             {
-                t.ColumnsDefinition(c =>
-                {
-                    c.RelativeColumn(2); c.RelativeColumn(2); c.RelativeColumn(3); c.RelativeColumn(3); c.RelativeColumn(1.2f);
-                });
+                t.ColumnsDefinition(c => { foreach (var w in widths) c.RelativeColumn(w); });
                 t.Header(h =>
                 {
-                    foreach (var s in new[] { "İngilizce", "Türkçe", "Örnek cümle", "Örnek çeviri", "Kategori" })
-                        h.Cell().Background(Colors.Blue.Lighten4).Border(0.5f).Padding(4).Text(s).Bold();
+                    foreach (var s in heads)
+                        h.Cell().Background(Colors.Blue.Lighten4).Border(0.5f).Padding(3).Text(s).Bold();
                 });
                 foreach (var it in items)
-                    foreach (var s in new[] { it.Text, it.Translation, it.Example, it.ExampleTr, it.Category })
-                        t.Cell().Border(0.5f).Padding(4).Text(s ?? "");
+                {
+                    string[] v = { it.Fav ? "★" : "", it.Kind, it.Text, it.Translation, it.Example, it.ExampleTr,
+                                   it.Category, it.Level, it.Pos, it.Note, it.Box.ToString() };
+                    foreach (var s in v) t.Cell().Border(0.5f).Padding(3).Text(s ?? "");
+                }
             });
             page.Footer().AlignCenter().Text(x =>
             {

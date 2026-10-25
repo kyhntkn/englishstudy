@@ -29,6 +29,8 @@ public partial class MainWindow : Window
         try { if (Db.GetInt("autobackup", 1) == 1) Db.AutoBackup(); } catch { }
         KindFilter.ItemsSource = new[] { "Tümü", "Kelime", "Cümle" };
         KindFilter.SelectedIndex = 0;
+        LevelFilter.ItemsSource = new[] { "Tüm seviyeler", "A1", "A2", "B1", "B2", "C1", "C2" };
+        LevelFilter.SelectedIndex = 0;
         IntervalBox.ItemsSource = new[] { "Kapalı", "1 dk", "5 dk", "10 dk", "15 dk", "30 dk", "60 dk" };
         IntervalBox.SelectedIndex = Math.Max(0, Array.IndexOf(_mins, Db.GetInt("interval", 0)));
         _timer.Tick += (s, e) => { if (!InQuiet()) ShowRandom(); };
@@ -62,7 +64,8 @@ public partial class MainWindow : Window
     {
         if (!_ready) return;
         string kind = KindFilter.SelectedIndex <= 0 ? "" : (string)KindFilter.SelectedItem;
-        var items = Db.Search(SearchBox.Text.Trim(), kind, SelCatId(CatFilter), FavOnly.IsChecked == true);
+        var items = Db.Search(SearchBox.Text.Trim(), kind, SelCatId(CatFilter), FavOnly.IsChecked == true,
+            LevelFilter.SelectedIndex <= 0 ? "" : (string)LevelFilter.SelectedItem);
         Grid.ItemsSource = items;
         CountText.Text = items.Count + " kayıt";
     }
@@ -131,6 +134,7 @@ public partial class MainWindow : Window
     {
         int m = _mins[Math.Max(0, IntervalBox.SelectedIndex)];
         _timer.Stop();
+        if (m == 0) { _snooze.Stop(); _snoozeItem = null; }
         if (m > 0) { _timer.Interval = TimeSpan.FromMinutes(m); _timer.Start(); }
         Db.SetSetting("interval", m.ToString());
     }
@@ -268,7 +272,7 @@ public partial class MainWindow : Window
         _tray.DoubleClick += (s, e) => ShowMain();
     }
 
-    void ShowMain() { Show(); WindowState = WindowState.Normal; Activate(); }
+    public void ShowMain() { Show(); WindowState = WindowState.Normal; Activate(); }
 
     void Exit()
     {

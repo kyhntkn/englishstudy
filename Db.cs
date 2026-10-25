@@ -136,14 +136,14 @@ public static class Db
         Exec("DELETE FROM Categories WHERE Id=@i", ("@i", id));
     }
 
-    public static List<Item> Search(string q, string kind, long catId, bool favOnly = false)
+    public static List<Item> Search(string q, string kind, long catId, bool favOnly = false, string level = "")
     {
         var list = new List<Item>();
         using var c = Open();
         using var cmd = c.CreateCommand();
         cmd.CommandText = "SELECT " + Cols + @" FROM Items i LEFT JOIN Categories c ON c.Id=i.CategoryId
             WHERE (@q='' OR i.Text LIKE @l OR i.Translation LIKE @l OR i.Example LIKE @l OR i.ExampleTr LIKE @l OR i.Note LIKE @l)
-              AND (@k='' OR i.Kind=@k) AND (@c=0 OR i.CategoryId=@c) AND (@f=0 OR i.Fav=1)
+              AND (@k='' OR i.Kind=@k) AND (@c=0 OR i.CategoryId=@c) AND (@f=0 OR i.Fav=1) AND (@lv='' OR i.Level=@lv)
             ORDER BY i.Id DESC";
         q = q ?? "";
         cmd.Parameters.AddWithValue("@q", q);
@@ -151,6 +151,7 @@ public static class Db
         cmd.Parameters.AddWithValue("@k", kind ?? "");
         cmd.Parameters.AddWithValue("@c", catId);
         cmd.Parameters.AddWithValue("@f", favOnly ? 1 : 0);
+        cmd.Parameters.AddWithValue("@lv", level ?? "");
         using var r = cmd.ExecuteReader();
         while (r.Read())
             list.Add(new Item
