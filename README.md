@@ -1,23 +1,20 @@
-# English Study
+# English Study v1.1
 
 Çevrimdışı İngilizce kelime/cümle çalışma uygulaması (WPF, .NET 8, SQLite).
 
 ## Özellikler
-- Kelime + örnek cümle + çevirileri, ayrı cümle kayıtları
-- Kategoriler, arama ve filtreleme
-- Belirli aralıklarla (1/5/10/15/30/60 dk) karışık sırayla küçük bildirim penceresi
-- Excel'e aktarma, yedek alma / geri yükleme
+- Kelime + örnek cümle + çevirileri, ayrı cümle kayıtları; seviye (A1-C2), sözcük türü, not
+- Kategoriler, arama, tür/kategori filtresi, favoriler (★)
+- Aralıklı tekrar (Leitner, 5 kutu): bildirimde "Biliyorum / Bilmiyorum / Ertele"
+- Belirli aralıklarla küçük bildirim; sessiz saatler (Ayarlar)
+- Quiz: çoktan seçmeli (iki yön), yazarak, boşluk doldurma
+- İstatistik: kutular, günlük hedef, seri, en çok yanlışlar
+- Seslendirme (Windows'un yerleşik İngilizce sesi, çevrimdışı)
+- Excel / PDF'e aktarma (ekrandaki liste), Excel'den içe aktarma
+- Yedek al / geri yükle, haftalık otomatik yedek
 - Sistem tepsisi, Windows ile başlatma
-- Veri: `%LocalAppData%\EnglishStudy\data.db`
+- Veri: `%LocalAppData%\EnglishStudy\data.db` (eski veriler otomatik yeni şemaya taşınır)
 
-## Exe nasıl alınır (en kolay yol)
-1. Bu klasörü GitHub'a yükle (repo kök dizininde `EnglishStudy.csproj` olmalı).
-2. Repo > **Actions** sekmesi > "Build exe" tamamlanınca > **Artifacts** > `EnglishStudy-win-x64` indir.
-3. Zip içindeki `EnglishStudy.exe` kurulum gerektirmeden çalışır.
-
-## Bilgisayarda derleme
-.NET 8 SDK kurulu olmalı:
-```
-dotnet run
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
-```
+## Exe nasıl alınır
+GitHub'a yükle > Actions > "Build exe" > Artifacts > `EnglishStudy-win-x64`.
+Ya da .NET 8 SDK ile: `dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true`

@@ -9,10 +9,12 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
     <AssemblyName>EnglishStudy</AssemblyName>
     <RootNamespace>EnglishStudy</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
     <PackageReference Include="ClosedXML" Version="0.104.2" />
+    <PackageReference Include="QuestPDF" Version="2024.10.3" />
+    <PackageReference Include="System.Speech" Version="8.0.0" />
   </ItemGroup>
 </Project>

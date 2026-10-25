@@ -14,22 +14,25 @@ public partial class MainWindow : Window
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     readonly int[] _mins = { 0, 1, 5, 10, 15, 30, 60 };
     readonly DispatcherTimer _timer = new();
+    readonly DispatcherTimer _snooze = new() { Interval = TimeSpan.FromMinutes(5) };
     readonly Random _rnd = new();
     System.Windows.Forms.NotifyIcon _tray;
-    List<Item> _bag = new();
     PopupWindow _popup;
+    Item _snoozeItem;
+    long _lastId = -1;
     bool _ready, _exiting;
 
     public MainWindow()
     {
         InitializeComponent();
         Db.Init();
+        try { if (Db.GetInt("autobackup", 1) == 1) Db.AutoBackup(); } catch { }
         KindFilter.ItemsSource = new[] { "Tümü", "Kelime", "Cümle" };
         KindFilter.SelectedIndex = 0;
         IntervalBox.ItemsSource = new[] { "Kapalı", "1 dk", "5 dk", "10 dk", "15 dk", "30 dk", "60 dk" };
-        int saved = int.TryParse(Db.GetSetting("interval", "0"), out var m) ? m : 0;
-        IntervalBox.SelectedIndex = Math.Max(0, Array.IndexOf(_mins, saved));
-        _timer.Tick += (s, e) => ShowRandom();
+        IntervalBox.SelectedIndex = Math.Max(0, Array.IndexOf(_mins, Db.GetInt("interval", 0)));
+        _timer.Tick += (s, e) => { if (!InQuiet()) ShowRandom(); };
+        _snooze.Tick += (s, e) => { _snooze.Stop(); if (_snoozeItem != null) ShowPopup(_snoozeItem); };
         LoadCats();
         AutoStart.IsChecked = Registry.CurrentUser.OpenSubKey(RunKey)?.GetValue("EnglishStudy") != null;
         SetupTray();
@@ -49,18 +52,17 @@ public partial class MainWindow : Window
         bool was = _ready;
         _ready = false;
         CatFilter.ItemsSource = list;
-        RemCat.ItemsSource = list;
+        RemCat.ItemsSource = list.ToList();
         CatFilter.SelectedItem = list.FirstOrDefault(c => c.Id == f) ?? list[0];
-        RemCat.SelectedItem = list.FirstOrDefault(c => c.Id == r) ?? list[0];
+        RemCat.SelectedItem = ((List<Cat>)RemCat.ItemsSource).FirstOrDefault(c => c.Id == r) ?? ((List<Cat>)RemCat.ItemsSource)[0];
         _ready = was;
-        _bag.Clear();
     }
 
     void Reload()
     {
         if (!_ready) return;
         string kind = KindFilter.SelectedIndex <= 0 ? "" : (string)KindFilter.SelectedItem;
-        var items = Db.Search(SearchBox.Text.Trim(), kind, SelCatId(CatFilter));
+        var items = Db.Search(SearchBox.Text.Trim(), kind, SelCatId(CatFilter), FavOnly.IsChecked == true);
         Grid.ItemsSource = items;
         CountText.Text = items.Count + " kayıt";
     }
@@ -70,21 +72,32 @@ public partial class MainWindow : Window
     void Add_Click(object s, RoutedEventArgs e)
     {
         var dlg = new ItemDialog(new Item { CategoryId = SelCatId(CatFilter) }, Db.GetCats()) { Owner = this };
-        if (dlg.ShowDialog() == true) { Db.Save(dlg.Result); _bag.Clear(); Reload(); }
+        if (dlg.ShowDialog() == true) { Db.Save(dlg.Result); Reload(); }
     }
 
     void Edit_Click(object s, RoutedEventArgs e)
     {
         if (Grid.SelectedItem is not Item it) return;
         var dlg = new ItemDialog(it, Db.GetCats()) { Owner = this };
-        if (dlg.ShowDialog() == true) { Db.Save(dlg.Result); _bag.Clear(); Reload(); }
+        if (dlg.ShowDialog() == true) { Db.Save(dlg.Result); Reload(); }
     }
 
     void Delete_Click(object s, RoutedEventArgs e)
     {
         if (Grid.SelectedItem is not Item it) return;
         if (MessageBox.Show(this, $"'{it.Text}' silinsin mi?", "Sil", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
-        Db.Delete(it.Id); _bag.Clear(); Reload();
+        Db.Delete(it.Id); Reload();
+    }
+
+    void Fav_Click(object s, RoutedEventArgs e)
+    {
+        if (Grid.SelectedItem is not Item it) return;
+        Db.SetFav(it.Id, !it.Fav); Reload();
+    }
+
+    void Speak_Click(object s, RoutedEventArgs e)
+    {
+        if (Grid.SelectedItem is Item it) Speaker.Say(it.Text);
     }
 
     void AddCat_Click(object s, RoutedEventArgs e)
@@ -97,12 +110,23 @@ public partial class MainWindow : Window
     void DelCat_Click(object s, RoutedEventArgs e)
     {
         long id = SelCatId(CatFilter);
-        if (id == 0) { MessageBox.Show(this, "Önce soldaki listeden silinecek kategoriyi seçin."); return; }
+        if (id == 0) { MessageBox.Show(this, "Önce üstteki kategori listesinden silinecek kategoriyi seçin."); return; }
         if (MessageBox.Show(this, "Kategori silinsin mi? Kayıtlar silinmez, kategorisiz kalır.", "Sil", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
         Db.DeleteCat(id); LoadCats(); Reload();
     }
 
+    void Quiz_Click(object s, RoutedEventArgs e) { new QuizWindow { Owner = this }.ShowDialog(); Reload(); }
+    void Stats_Click(object s, RoutedEventArgs e) => new StatsWindow { Owner = this }.ShowDialog();
+    void Settings_Click(object s, RoutedEventArgs e) => new SettingsWindow { Owner = this }.ShowDialog();
+
     // ---- Hatırlatma ----
+    bool InQuiet()
+    {
+        if (Db.GetInt("quiet_on", 0) != 1) return false;
+        int f = Db.GetInt("quiet_from", 22), t = Db.GetInt("quiet_to", 8), h = DateTime.Now.Hour;
+        return f <= t ? (h >= f && h < t) : (h >= f || h < t);
+    }
+
     void ApplyTimer()
     {
         int m = _mins[Math.Max(0, IntervalBox.SelectedIndex)];
@@ -112,18 +136,35 @@ public partial class MainWindow : Window
     }
 
     void Interval_Changed(object s, SelectionChangedEventArgs e) { if (_ready) ApplyTimer(); }
-    void RemCat_Changed(object s, SelectionChangedEventArgs e) { if (_ready) _bag.Clear(); }
+    void RemCat_Changed(object s, SelectionChangedEventArgs e) { }
     void ShowNow_Click(object s, RoutedEventArgs e) => ShowRandom();
 
+    // Zamanı gelen (aralıklı tekrar) kayıtlar önce, yoksa rastgele
     void ShowRandom()
     {
-        if (_bag.Count == 0)
-            _bag = Db.Search("", "", SelCatId(RemCat)).OrderBy(_ => _rnd.Next()).ToList();
-        if (_bag.Count == 0) return;
-        var it = _bag[^1];
-        _bag.RemoveAt(_bag.Count - 1);
+        var all = Db.Search("", "", SelCatId(RemCat));
+        if (all.Count == 0) return;
+        var now = DateTime.Now;
+        var cand = all.Where(i => i.Id != _lastId).ToList();
+        if (cand.Count == 0) cand = all;
+        var due = cand.Where(i => i.IsDue(now)).ToList();
+        var pool = due.Count > 0 ? due : cand;
+        var it = pool[_rnd.Next(pool.Count)];
+        _lastId = it.Id;
+        ShowPopup(it);
+    }
+
+    void ShowPopup(Item it)
+    {
         _popup?.Close();
-        var p = new PopupWindow(it);
+        PopupWindow p = null;
+        p = new PopupWindow(it, act =>
+        {
+            if (act == "know") Db.Review(it, true);
+            else if (act == "dont") Db.Review(it, false);
+            else if (act == "snooze") { _snoozeItem = it; _snooze.Stop(); _snooze.Start(); }
+            Reload();
+        });
         p.Closed += (s, e) => { if (_popup == p) _popup = null; };
         _popup = p;
         p.Show();
@@ -138,25 +179,61 @@ public partial class MainWindow : Window
         else k.DeleteValue("EnglishStudy", false);
     }
 
-    // ---- Dışa aktarma / yedek ----
+    // ---- Dışa / içe aktarma, yedek ----
+    List<Item> Shown() => Grid.ItemsSource as List<Item> ?? new List<Item>();
+
     void Export_Click(object s, RoutedEventArgs e)
     {
         var dlg = new SaveFileDialog { Filter = "Excel (*.xlsx)|*.xlsx", FileName = "kelimeler.xlsx" };
         if (dlg.ShowDialog(this) != true) return;
-        var items = Db.Search("", "", 0);
+        var items = Shown();
         using var wb = new XLWorkbook();
         var ws = wb.AddWorksheet("Kayıtlar");
-        string[] heads = { "Tür", "İngilizce", "Türkçe", "Örnek cümle", "Örnek çeviri", "Kategori" };
+        string[] heads = { "Tür", "İngilizce", "Türkçe", "Örnek cümle", "Örnek çeviri", "Kategori", "Seviye", "Sözcük türü", "Not" };
         for (int i = 0; i < heads.Length; i++) { ws.Cell(1, i + 1).Value = heads[i]; ws.Cell(1, i + 1).Style.Font.Bold = true; }
         for (int r = 0; r < items.Count; r++)
         {
             var it = items[r];
-            ws.Cell(r + 2, 1).Value = it.Kind; ws.Cell(r + 2, 2).Value = it.Text; ws.Cell(r + 2, 3).Value = it.Translation;
-            ws.Cell(r + 2, 4).Value = it.Example; ws.Cell(r + 2, 5).Value = it.ExampleTr; ws.Cell(r + 2, 6).Value = it.Category;
+            string[] v = { it.Kind, it.Text, it.Translation, it.Example, it.ExampleTr, it.Category, it.Level, it.Pos, it.Note };
+            for (int c = 0; c < v.Length; c++) ws.Cell(r + 2, c + 1).Value = v[c];
         }
         ws.Columns().AdjustToContents();
         wb.SaveAs(dlg.FileName);
-        MessageBox.Show(this, "Excel dosyası kaydedildi.");
+        MessageBox.Show(this, $"{items.Count} kayıt Excel dosyasına aktarıldı (ekranda görünen liste).");
+    }
+
+    void Pdf_Click(object s, RoutedEventArgs e)
+    {
+        var dlg = new SaveFileDialog { Filter = "PDF (*.pdf)|*.pdf", FileName = "kelimeler.pdf" };
+        if (dlg.ShowDialog(this) != true) return;
+        try { Exporter.Pdf(Shown(), dlg.FileName); MessageBox.Show(this, "PDF kaydedildi (ekranda görünen liste)."); }
+        catch (Exception ex) { MessageBox.Show(this, "PDF hatası: " + ex.Message); }
+    }
+
+    void Import_Click(object s, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog { Filter = "Excel (*.xlsx)|*.xlsx" };
+        if (dlg.ShowDialog(this) != true) return;
+        int added = 0, skipped = 0;
+        try
+        {
+            using var wb = new XLWorkbook(dlg.FileName);
+            var ws = wb.Worksheet(1);
+            foreach (var row in ws.RowsUsed().Skip(1))
+            {
+                string S(int c) => row.Cell(c).GetString().Trim();
+                string text = S(2), tr = S(3);
+                if (text == "" || tr == "") { skipped++; continue; }
+                string kind = S(1).StartsWith("C", StringComparison.OrdinalIgnoreCase) ? "Cümle" : "Kelime";
+                if (Db.Exists(kind, text)) { skipped++; continue; }
+                long cat = S(6) == "" ? 0 : Db.EnsureCat(S(6));
+                Db.Save(new Item { Kind = kind, Text = text, Translation = tr, Example = S(4), ExampleTr = S(5), CategoryId = cat, Level = S(7), Pos = S(8), Note = S(9) });
+                added++;
+            }
+        }
+        catch (Exception ex) { MessageBox.Show(this, "İçe aktarma hatası: " + ex.Message); return; }
+        LoadCats(); Reload();
+        MessageBox.Show(this, $"{added} kayıt eklendi, {skipped} satır atlandı (boş veya zaten var).\nSütun sırası: Tür, İngilizce, Türkçe, Örnek cümle, Örnek çeviri, Kategori, Seviye, Sözcük türü, Not");
     }
 
     void Backup_Click(object s, RoutedEventArgs e)

@@ -1,39 +1,54 @@
 <Window x:Class="EnglishStudy.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="English Study" Height="620" Width="1080" WindowStartupLocation="CenterScreen">
+        Title="English Study" Height="680" Width="1180" WindowStartupLocation="CenterScreen">
   <DockPanel>
     <WrapPanel DockPanel.Dock="Top" Margin="8">
-      <TextBox x:Name="SearchBox" Width="220" Margin="0,0,8,4" Padding="3" TextChanged="Filter_Changed" ToolTip="Kelime, çeviri veya cümle ara"/>
+      <TextBox x:Name="SearchBox" Width="220" Margin="0,0,8,4" Padding="3" TextChanged="Filter_Changed" ToolTip="Kelime, çeviri, cümle veya not ara"/>
       <ComboBox x:Name="KindFilter" Width="90" Margin="0,0,8,4" SelectionChanged="Filter_Changed"/>
       <ComboBox x:Name="CatFilter" Width="160" Margin="0,0,8,4" DisplayMemberPath="Name" SelectionChanged="Filter_Changed"/>
+      <CheckBox x:Name="FavOnly" Content="Sadece ★" VerticalAlignment="Center" Margin="0,0,12,4" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
       <Button Content="+ Yeni kayıt" Click="Add_Click" Padding="12,3" Margin="0,0,4,4"/>
       <Button Content="Düzenle" Click="Edit_Click" Padding="12,3" Margin="0,0,4,4"/>
-      <Button Content="Sil" Click="Delete_Click" Padding="12,3" Margin="0,0,12,4"/>
+      <Button Content="Sil" Click="Delete_Click" Padding="12,3" Margin="0,0,4,4"/>
+      <Button Content="★ Favori" Click="Fav_Click" Padding="12,3" Margin="0,0,4,4"/>
+      <Button Content="🔊 Seslendir" Click="Speak_Click" Padding="12,3" Margin="0,0,12,4"/>
       <Button Content="+ Kategori" Click="AddCat_Click" Padding="12,3" Margin="0,0,4,4"/>
       <Button Content="Kategoriyi sil" Click="DelCat_Click" Padding="12,3" Margin="0,0,4,4"/>
     </WrapPanel>
-    <WrapPanel DockPanel.Dock="Bottom" Margin="8">
-      <TextBlock Text="Hatırlat:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-      <ComboBox x:Name="IntervalBox" Width="80" Margin="0,0,10,0" SelectionChanged="Interval_Changed"/>
-      <TextBlock Text="Kategori:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-      <ComboBox x:Name="RemCat" Width="150" Margin="0,0,10,0" DisplayMemberPath="Name" SelectionChanged="RemCat_Changed"/>
-      <Button Content="Şimdi göster" Click="ShowNow_Click" Padding="10,3" Margin="0,0,10,0"/>
-      <CheckBox x:Name="AutoStart" Content="Windows ile başlat" VerticalAlignment="Center" Margin="0,0,16,0" Checked="AutoStart_Changed" Unchecked="AutoStart_Changed"/>
-      <Button Content="Excel'e aktar" Click="Export_Click" Padding="10,3" Margin="0,0,4,0"/>
-      <Button Content="Yedekle" Click="Backup_Click" Padding="10,3" Margin="0,0,4,0"/>
-      <Button Content="Geri yükle" Click="Restore_Click" Padding="10,3" Margin="0,0,16,0"/>
-      <TextBlock x:Name="CountText" VerticalAlignment="Center" Foreground="Gray"/>
-    </WrapPanel>
+    <StackPanel DockPanel.Dock="Bottom">
+      <WrapPanel Margin="8,8,8,0">
+        <TextBlock Text="Hatırlat:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+        <ComboBox x:Name="IntervalBox" Width="80" Margin="0,0,10,4" SelectionChanged="Interval_Changed"/>
+        <TextBlock Text="Kategori:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+        <ComboBox x:Name="RemCat" Width="150" Margin="0,0,10,4" DisplayMemberPath="Name" SelectionChanged="RemCat_Changed"/>
+        <Button Content="Şimdi göster" Click="ShowNow_Click" Padding="10,3" Margin="0,0,4,4"/>
+        <Button Content="Quiz" Click="Quiz_Click" Padding="14,3" Margin="0,0,4,4"/>
+        <Button Content="İstatistik" Click="Stats_Click" Padding="10,3" Margin="0,0,4,4"/>
+        <Button Content="Ayarlar" Click="Settings_Click" Padding="10,3" Margin="0,0,4,4"/>
+      </WrapPanel>
+      <WrapPanel Margin="8">
+        <CheckBox x:Name="AutoStart" Content="Windows ile başlat" VerticalAlignment="Center" Margin="0,0,14,0" Checked="AutoStart_Changed" Unchecked="AutoStart_Changed"/>
+        <Button Content="Excel'e aktar" Click="Export_Click" Padding="10,3" Margin="0,0,4,0"/>
+        <Button Content="PDF'e aktar" Click="Pdf_Click" Padding="10,3" Margin="0,0,4,0"/>
+        <Button Content="Excel'den içe aktar" Click="Import_Click" Padding="10,3" Margin="0,0,4,0"/>
+        <Button Content="Yedekle" Click="Backup_Click" Padding="10,3" Margin="0,0,4,0"/>
+        <Button Content="Geri yükle" Click="Restore_Click" Padding="10,3" Margin="0,0,14,0"/>
+        <TextBlock x:Name="CountText" VerticalAlignment="Center" Foreground="Gray"/>
+      </WrapPanel>
+    </StackPanel>
     <DataGrid x:Name="Grid" Margin="8,0,8,0" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
               CanUserAddRows="False" MouseDoubleClick="Edit_Click" AlternatingRowBackground="#F5F7FB">
       <DataGrid.Columns>
-        <DataGridTextColumn Header="Tür" Binding="{Binding Kind}" Width="70"/>
+        <DataGridTextColumn Header="★" Binding="{Binding FavMark}" Width="30"/>
+        <DataGridTextColumn Header="Tür" Binding="{Binding Kind}" Width="65"/>
         <DataGridTextColumn Header="İngilizce" Binding="{Binding Text}" Width="2*"/>
         <DataGridTextColumn Header="Türkçe" Binding="{Binding Translation}" Width="2*"/>
         <DataGridTextColumn Header="Örnek cümle" Binding="{Binding Example}" Width="3*"/>
         <DataGridTextColumn Header="Örnek çeviri" Binding="{Binding ExampleTr}" Width="3*"/>
         <DataGridTextColumn Header="Kategori" Binding="{Binding Category}" Width="*"/>
+        <DataGridTextColumn Header="Seviye" Binding="{Binding Level}" Width="55"/>
+        <DataGridTextColumn Header="Kutu" Binding="{Binding Box}" Width="45"/>
       </DataGrid.Columns>
     </DataGrid>
   </DockPanel>
