@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Globalization;
 using System.Speech.Synthesis;
 using QuestPDF.Fluent;
@@ -62,5 +64,41 @@ public static class Exporter
                 x.TotalPages();
             });
         })).GeneratePdf(path);
+    }
+}
+
+public static class Pkg
+{
+    public const string TaskId = "EnglishDefterimStartup";
+    static bool? _p;
+
+    public static bool IsPackaged
+    {
+        get
+        {
+            if (_p == null)
+            {
+                try { _ = Windows.ApplicationModel.Package.Current.Id; _p = true; }
+                catch { _p = false; }
+            }
+            return _p.Value;
+        }
+    }
+
+    static bool On(Windows.ApplicationModel.StartupTaskState s) =>
+        s == Windows.ApplicationModel.StartupTaskState.Enabled || s == Windows.ApplicationModel.StartupTaskState.EnabledByPolicy;
+
+    public static async Task<bool> GetStartupEnabled()
+    {
+        var t = await Windows.ApplicationModel.StartupTask.GetAsync(TaskId);
+        return On(t.State);
+    }
+
+    public static async Task<bool> SetStartup(bool enable)
+    {
+        var t = await Windows.ApplicationModel.StartupTask.GetAsync(TaskId);
+        if (enable) return On(await t.RequestEnableAsync());
+        t.Disable();
+        return true;
     }
 }

@@ -36,12 +36,12 @@ public partial class MainWindow : Window
         _timer.Tick += (s, e) => { if (!InQuiet()) ShowRandom(); };
         _snooze.Tick += (s, e) => { _snooze.Stop(); if (_snoozeItem != null) ShowPopup(_snoozeItem); };
         LoadCats();
-        AutoStart.IsChecked = Registry.CurrentUser.OpenSubKey(RunKey)?.GetValue("EnglishStudy") != null;
+        LoadAutoStart();
         SetupTray();
         _ready = true;
         ApplyTimer();
         Reload();
-        if (Environment.GetCommandLineArgs().Contains("--tray")) Loaded += (s, e) => Hide();
+        if (Environment.GetCommandLineArgs().Contains("--tray") || StartedAtLogon()) Loaded += (s, e) => Hide();
     }
 
     static long SelCatId(ComboBox cb) => (cb.SelectedItem as Cat)?.Id ?? 0;
@@ -175,11 +175,51 @@ public partial class MainWindow : Window
     }
 
     // ---- Windows ile başlat ----
-    void AutoStart_Changed(object s, RoutedEventArgs e)
+    bool _loadingAuto;
+
+    async void LoadAutoStart()
     {
-        if (!_ready) return;
+        bool on = false;
+        try
+        {
+            on = Pkg.IsPackaged ? await Pkg.GetStartupEnabled()
+                                : Registry.CurrentUser.OpenSubKey(RunKey)?.GetValue("EnglishStudy") != null;
+        }
+        catch { }
+        _loadingAuto = true; AutoStart.IsChecked = on; _loadingAuto = false;
+    }
+
+    // Store (MSIX) sürümünde başlangıç görevi tetiklenince pencere açılmadan tepsiye geçmek için
+    static bool StartedAtLogon()
+    {
+        try
+        {
+            if (!Pkg.IsPackaged || Db.GetInt("startup_on", 0) != 1) return false;
+            var me = System.Diagnostics.Process.GetCurrentProcess().StartTime;
+            var ex = System.Diagnostics.Process.GetProcessesByName("explorer").Select(p => p.StartTime).OrderBy(t => t).FirstOrDefault();
+            return ex != default && me >= ex && (me - ex).TotalMinutes < 2;
+        }
+        catch { return false; }
+    }
+
+    async void AutoStart_Changed(object s, RoutedEventArgs e)
+    {
+        if (!_ready || _loadingAuto) return;
+        bool on = AutoStart.IsChecked == true;
+        if (Pkg.IsPackaged)
+        {
+            bool ok = false;
+            try { ok = await Pkg.SetStartup(on); } catch { }
+            if (ok) Db.SetSetting("startup_on", on ? "1" : "0");
+            if (on && !ok)
+            {
+                MessageBox.Show(this, "Windows başlangıç iznini vermedi. Ayarlar > Uygulamalar > Başlangıç bölümünden İngilizce Defterim'i açabilirsin.");
+                _loadingAuto = true; AutoStart.IsChecked = false; _loadingAuto = false;
+            }
+            return;
+        }
         using var k = Registry.CurrentUser.OpenSubKey(RunKey, true);
-        if (AutoStart.IsChecked == true) k.SetValue("EnglishStudy", "\"" + Environment.ProcessPath + "\" --tray");
+        if (on) k.SetValue("EnglishStudy", "\"" + Environment.ProcessPath + "\" --tray");
         else k.DeleteValue("EnglishStudy", false);
     }
 
@@ -262,7 +302,7 @@ public partial class MainWindow : Window
         _tray = new System.Windows.Forms.NotifyIcon
         {
             Icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath),
-            Visible = true, Text = "English Study"
+            Visible = true, Text = "İngilizce Defterim"
         };
         var menu = new System.Windows.Forms.ContextMenuStrip();
         menu.Items.Add("Aç", null, (s, e) => ShowMain());

@@ -18,3 +18,7 @@
 ## Exe nasıl alınır
 GitHub'a yükle > Actions > "Build exe" > Artifacts > `EnglishStudy-win-x64`.
 Ya da .NET 8 SDK ile: `dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true`
+
+## Microsoft Store paketi
+Repo > Actions > "Store paketi (MSIX)" > Run workflow. Bitince Artifacts altındaki `IngilizceDefterim-msix` dosyasındaki `.msix` Partner Center'a yüklenir.
+Kimlik bilgileri `AppxManifest.xml` içindedir. Mağaza metinleri ve simgeler `magaza-bilgileri` klasöründedir. Logolar iş akışında `app.ico` dosyasından üretilir.
