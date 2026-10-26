@@ -1,0 +1,31 @@
+name: Store paketi (MSIX)
+on:
+  workflow_dispatch:
+jobs:
+  msix:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish
+        run: dotnet publish EnglishStudy.csproj -c Release -r win-x64 --self-contained true -o publish
+      - name: Paket klasorunu hazirla
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force pkg | Out-Null
+          Copy-Item publish\* pkg -Recurse
+          New-Item -ItemType Directory -Force pkg\Assets | Out-Null
+          Copy-Item AppxManifest.xml pkg\AppxManifest.xml
+          python -m pip install pillow
+          python -c "from PIL import Image; im=Image.open('app.ico'); im.size=max(im.info['sizes']); im=im.convert('RGBA'); [im.resize((s,s)).save('pkg/Assets/'+n+'.png') for n,s in [('StoreLogo',50),('Square44x44Logo',44),('Square150x150Logo',150)]]"
+      - name: MSIX olustur
+        shell: pwsh
+        run: |
+          $mk = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\makeappx.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          & $mk.FullName pack /d pkg /p IngilizceDefterim.msix /o
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IngilizceDefterim-msix
+          path: IngilizceDefterim.msix
