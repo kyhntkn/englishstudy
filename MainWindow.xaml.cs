@@ -87,9 +87,27 @@ public partial class MainWindow : Window
 
     void Delete_Click(object s, RoutedEventArgs e)
     {
-        if (Grid.SelectedItem is not Item it) return;
-        if (MessageBox.Show(this, $"'{it.Text}' silinsin mi?", "Sil", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
-        Db.Delete(it.Id); Reload();
+        var sel = Grid.SelectedItems.OfType<Item>().ToList();
+        if (sel.Count == 0) return;
+        string msg = sel.Count == 1 ? $"'{sel[0].Text}' silinsin mi?" : $"Seçili {sel.Count} kayıt silinsin mi?";
+        if (MessageBox.Show(this, msg, "Sil", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+        DeleteItems(sel);
+    }
+
+    void DeleteShown_Click(object s, RoutedEventArgs e)
+    {
+        var all = Shown();
+        if (all.Count == 0) { MessageBox.Show(this, "Listede silinecek kayıt yok."); return; }
+        string msg = $"Şu an listelenen {all.Count} kaydın hepsi silinsin mi?\n\nFiltre uygulamadıysan TÜM kayıtlar silinir. Silmeden önce otomatik yedek alınır.";
+        if (MessageBox.Show(this, msg, "Listelenenleri sil", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        DeleteItems(all);
+    }
+
+    void DeleteItems(List<Item> items)
+    {
+        try { if (items.Count > 1) Db.SafetyBackup(); } catch { }
+        Db.DeleteMany(items.Select(i => i.Id));
+        Reload();
     }
 
     void Fav_Click(object s, RoutedEventArgs e)

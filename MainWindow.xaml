@@ -12,6 +12,7 @@
       <Button Content="+ Yeni kayıt" Click="Add_Click" Padding="12,3" Margin="0,0,4,4"/>
       <Button Content="Düzenle" Click="Edit_Click" Padding="12,3" Margin="0,0,4,4"/>
       <Button Content="Sil" Click="Delete_Click" Padding="12,3" Margin="0,0,4,4"/>
+      <Button Content="Listelenenleri sil" Click="DeleteShown_Click" Padding="12,3" Margin="0,0,4,4"/>
       <Button Content="★ Favori" Click="Fav_Click" Padding="12,3" Margin="0,0,4,4"/>
       <Button Content="🔊 Seslendir" Click="Speak_Click" Padding="12,3" Margin="0,0,12,4"/>
       <Button Content="+ Kategori" Click="AddCat_Click" Padding="12,3" Margin="0,0,4,4"/>
@@ -38,7 +39,7 @@
         <TextBlock x:Name="CountText" VerticalAlignment="Center" Foreground="Gray"/>
       </WrapPanel>
     </StackPanel>
-    <DataGrid x:Name="Grid" Margin="8,0,8,0" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+    <DataGrid x:Name="Grid" Margin="8,0,8,0" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Extended"
               CanUserAddRows="False" MouseDoubleClick="Edit_Click" AlternatingRowBackground="#F5F7FB">
       <DataGrid.Columns>
         <DataGridTextColumn Header="★" Binding="{Binding FavMark}" Width="30"/>

@@ -192,6 +192,31 @@ public static class Db
 
     public static void Delete(long id) => Exec("DELETE FROM Items WHERE Id=@i", ("@i", id));
 
+    public static void DeleteMany(IEnumerable<long> ids)
+    {
+        var list = ids.ToList();
+        using var c = Open();
+        using var tx = c.BeginTransaction();
+        for (int i = 0; i < list.Count; i += 500)
+        {
+            using var cmd = c.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = "DELETE FROM Items WHERE Id IN (" + string.Join(",", list.Skip(i).Take(500)) + ")";
+            cmd.ExecuteNonQuery();
+        }
+        tx.Commit();
+    }
+
+    // Toplu silmeden önce otomatik yedek (son 5 tanesi saklanır)
+    public static void SafetyBackup()
+    {
+        var dir = Path.Combine(Dir, "Backups");
+        Directory.CreateDirectory(dir);
+        Backup(Path.Combine(dir, $"silme-oncesi-{DateTime.Now:yyyyMMdd-HHmmss}.db"));
+        foreach (var f in new DirectoryInfo(dir).GetFiles("silme-oncesi-*.db").OrderByDescending(x => x.CreationTime).Skip(5))
+        { try { f.Delete(); } catch { } }
+    }
+
     // Leitner: doğru -> bir üst kutu, yanlış -> 1. kutu
     public static void Review(Item it, bool ok)
     {
